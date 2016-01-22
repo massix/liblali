@@ -1,0 +1,3 @@
+*.so
+*.o
+.clang_complete

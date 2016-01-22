@@ -1,0 +1,16 @@
+CXX = clang++
+CXXFLAGS = -Wall -fPIC
+TARGET = libflate.so
+OBJECTS = flate.o
+
+.PHONY: clean
+
+all: $(TARGET)
+
+libflate.so: $(OBJECTS)
+	clang++ -shared -o libflate.so flate.o
+
+%.cpp: %.o
+
+clean:
+	rm -f $(TARGET) $(OBJECTS)
