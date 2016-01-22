@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -Wall -fPIC
+CXXFLAGS = -Wall -fPIC -O3
 TARGET = libflate.so
 OBJECTS = flate.o
 
@@ -9,6 +9,7 @@ all: $(TARGET)
 
 libflate.so: $(OBJECTS)
 	clang++ -shared -o libflate.so flate.o
+	strip $(TARGET)
 
 %.cpp: %.o
 
