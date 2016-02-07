@@ -9,7 +9,6 @@ all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	clang++ -shared -o $(TARGET) $(OBJECTS)
-	strip $(TARGET)
 
 %.cpp: %.o
 

@@ -9,7 +9,6 @@ all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) -shared -o $(TARGET) -L../flate -lflate -L../json11 -ljson11 $(OBJECTS)
-	strip $(TARGET)
 
 %.cpp: %.o
 
