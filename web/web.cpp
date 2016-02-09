@@ -119,11 +119,11 @@ web::web(config * p_config) :
     p_request["Content-Type"] = l_contentType;
     return str;
   };
+}
 
-  // for (servlet const & c_servlet : m_config->getServlets()) {
-  //   /* Todo */
-  // }
-
+void web::insert(const std::string &p_key, servlet_t p_collection)
+{
+  m_servlets[p_key] = p_collection;
 }
 
 bool web::get_content_of_file(std::string const & p_file, std::string & p_content, std::string & p_mime)
@@ -266,11 +266,24 @@ void web::run()
           l_responseHeaders["Content-Type"] = "text/html";
           l_responseHeaders["Connection"] = "close";
 
-          if (m_servlets.find(l_headers.get_url()->get_full_path()) != m_servlets.end())
+          std::string l_calledServlet;
+          std::string l_askedPage;
+
+          if (not l_headers.get_url()->get_path().empty()) {
+            l_calledServlet = "/" + l_headers.get_url()->get_path()[0] + "/";
+            l_askedPage = l_headers.get_url()->get_full_path().substr(l_calledServlet.size());
+          }
+          else {
+            l_calledServlet = l_headers.get_url()->get_full_path();
+          }
+
+          l_askedPage += l_headers.get_url()->get_page();
+
+          if (m_servlets.find(l_calledServlet) != m_servlets.end())
           {
-            l_html_response = m_servlets[l_headers.get_url()->get_full_path()](l_headers.get_url()->get_page(),
-                                                                               l_headers.get_url()->get_cgi(),
-                                                                               l_responseHeaders);
+            l_html_response = m_servlets[l_calledServlet](l_askedPage,
+                                                          l_headers.get_url()->get_cgi(),
+                                                          l_responseHeaders);
           }
           else
           {
