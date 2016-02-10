@@ -104,9 +104,11 @@ bool config::parse_config()
     }
 
     if (not l_ret) {
-      fprintf(stderr, "Error in configuration file at line %d : '%s' not expected\n",
-                      l_index, l_line);
-      break;
+      // Uknown key, create a normal entry
+      std::string l_genericKey;
+      l_genericKey = l_string.substr(0, l_string.find(' '));
+      (*this)(l_genericKey) = l_string.substr(l_string.find('=') + 2, l_string.size());
+      l_ret = true;
     }
 
     l_index++;
