@@ -237,83 +237,91 @@ void web::run()
           int32_t l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
           l_request.resize(l_length);
 
-          // If we are here, we have a request to handle
-          http_request l_headers(l_request);
-          syslog(LOG_NOTICE, "Received request from %s [ %s ]",
-                 l_clientIP, l_headers["HTTP_Request"].c_str());
+          try {
 
-          // Check if we are waiting for a body too (POST)
-          if (l_headers.m_request == http_request::kPost) {
-            // Set non-blocking socket in order to avoid infinite wait
-            int flags;
-            flags = fcntl(l_accepted, F_GETFL, 0);
-            fcntl(l_accepted, F_SETFL, flags | O_NONBLOCK);
+            // If we are here, we have a request to handle
+            http_request l_headers(l_request);
+            syslog(LOG_NOTICE, "Received request from %s [ %s ]",
+                   l_clientIP, l_headers["HTTP_Request"].c_str());
 
-            l_request.resize(atoi(l_headers["Content-Length"].c_str()));
-            l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
-            syslog(LOG_DEBUG, "Length of body: %d", l_length);
+            // Check if we are waiting for a body too (POST)
+            if (l_headers.m_request == http_request::kPost) {
+              // Set non-blocking socket in order to avoid infinite wait
+              int flags;
+              flags = fcntl(l_accepted, F_GETFL, 0);
+              fcntl(l_accepted, F_SETFL, flags | O_NONBLOCK);
 
-            if (l_length != -1) {
-              syslog(LOG_DEBUG, "Received body: %s", l_request.c_str());
-              l_headers.get_url()->parse_cgi(l_request);
+              l_request.resize(atoi(l_headers["Content-Length"].c_str()));
+              l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
+              syslog(LOG_DEBUG, "Length of body: %d", l_length);
+
+              if (l_length != -1) {
+                syslog(LOG_DEBUG, "Received body: %s", l_request.c_str());
+                l_headers.get_url()->parse_cgi(l_request);
+              }
             }
+
+            // Call the servlet if we have it
+            std::string l_html_response;
+            http_request l_responseHeaders;
+            l_responseHeaders.m_request = l_headers.m_request;
+            l_responseHeaders["Content-Type"] = "text/html";
+            l_responseHeaders["Connection"] = "close";
+
+            std::string l_calledServlet;
+            std::string l_askedPage;
+
+            if (not l_headers.get_url()->get_path().empty()) {
+              l_calledServlet = "/" + l_headers.get_url()->get_path()[0] + "/";
+              l_askedPage = l_headers.get_url()->get_full_path().substr(l_calledServlet.size());
+            }
+            else {
+              l_calledServlet = l_headers.get_url()->get_full_path();
+            }
+
+            l_askedPage += l_headers.get_url()->get_page();
+
+            if (m_servlets.find(l_calledServlet) != m_servlets.end())
+            {
+              l_html_response = m_servlets[l_calledServlet](l_askedPage,
+                                                            l_headers.get_url()->get_cgi(),
+                                                            l_responseHeaders);
+            }
+            else
+            {
+              l_responseHeaders.m_code = http_request::kNotFound;
+              Flate * l_flate = NULL;
+
+              flateSetFile(&l_flate, std::string(m_templates + "404_template.html").c_str());
+              flateSetVar(l_flate, "servlet",
+                          l_headers.get_url()->get_full_path().c_str());
+              flateSetVar(l_flate, "page",
+                          l_headers.get_url()->get_page().c_str());
+
+              char * l_buffer = flatePage(l_flate);
+              l_html_response = l_buffer;
+            }
+
+
+            l_responseHeaders["Server"] = "lali-web-dev";
+            l_responseHeaders["Content-Length"] = std::to_string(l_html_response.size());
+
+            std::string l_response = l_responseHeaders.to_string();
+            l_response += l_html_response;
+
+            l_length = send(l_accepted,
+                            l_response.c_str(),
+                            l_response.size(),
+                            0);
+
+            syslog(LOG_NOTICE, "Replying to %s [ %s ]",
+                   l_clientIP, l_responseHeaders.code_to_string().c_str());
           }
-
-          // Call the servlet if we have it
-          std::string l_html_response;
-          http_request l_responseHeaders;
-          l_responseHeaders.m_request = l_headers.m_request;
-          l_responseHeaders["Content-Type"] = "text/html";
-          l_responseHeaders["Connection"] = "close";
-
-          std::string l_calledServlet;
-          std::string l_askedPage;
-
-          if (not l_headers.get_url()->get_path().empty()) {
-            l_calledServlet = "/" + l_headers.get_url()->get_path()[0] + "/";
-            l_askedPage = l_headers.get_url()->get_full_path().substr(l_calledServlet.size());
-          }
-          else {
-            l_calledServlet = l_headers.get_url()->get_full_path();
-          }
-
-          l_askedPage += l_headers.get_url()->get_page();
-
-          if (m_servlets.find(l_calledServlet) != m_servlets.end())
+          catch(std::exception const & e)
           {
-            l_html_response = m_servlets[l_calledServlet](l_askedPage,
-                                                          l_headers.get_url()->get_cgi(),
-                                                          l_responseHeaders);
-          }
-          else
-          {
-            l_responseHeaders.m_code = http_request::kNotFound;
-            Flate * l_flate = NULL;
-
-            flateSetFile(&l_flate, std::string(m_templates + "404_template.html").c_str());
-            flateSetVar(l_flate, "servlet",
-                        l_headers.get_url()->get_full_path().c_str());
-            flateSetVar(l_flate, "page",
-                        l_headers.get_url()->get_page().c_str());
-
-            char * l_buffer = flatePage(l_flate);
-            l_html_response = l_buffer;
+            std::cerr << " --- Exception caught: " << e.what() << std::endl;
           }
 
-
-          l_responseHeaders["Server"] = "lali-web-dev";
-          l_responseHeaders["Content-Length"] = std::to_string(l_html_response.size());
-
-          std::string l_response = l_responseHeaders.to_string();
-          l_response += l_html_response;
-
-          l_length = send(l_accepted,
-                          l_response.c_str(),
-                          l_response.size(),
-                          0);
-
-          syslog(LOG_NOTICE, "Replying to %s [ %s ]",
-                 l_clientIP, l_responseHeaders.code_to_string().c_str());
           close(l_accepted);
         });
 
