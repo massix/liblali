@@ -9,7 +9,6 @@ all: $(TARGET)
 
 libflate.so: $(OBJECTS)
 	clang++ -shared -o libflate.so flate.o
-	strip $(TARGET)
 
 %.cpp: %.o
 

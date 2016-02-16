@@ -35,6 +35,7 @@ namespace todo
 {
   class web
   {
+  public:
     typedef std::function<std::string(std::string const &, url::cgi_t const &, http_request &)> servlet_t;
     typedef std::map<std::string, servlet_t> servlets_t;
   public:
