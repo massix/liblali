@@ -1,6 +1,6 @@
 SUBDIRS = flate json11 web
 
-.PHONY: clean
+.PHONY: clean flate/libflate.so json11/libjson11.so web/liblali.so
 
 all: flate/libflate.so json11/libjson11.so web/liblali.so
 
