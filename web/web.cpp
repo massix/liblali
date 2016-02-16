@@ -37,6 +37,7 @@
 #include <iostream>
 #include <fstream>
 #include <unistd.h>
+#include <mutex>
 
 using namespace todo;
 
@@ -182,8 +183,6 @@ void web::run()
 
     // Set a timeout
     struct timeval tv;
-    tv.tv_sec = 3;
-    tv.tv_usec = 1000;
 
     // Reusable socket
     int yes = 1;
@@ -212,32 +211,42 @@ void web::run()
     }
 
     m_running = true;
+    fd_set l_set;
+    std::mutex l_threadInit;
+
     while (m_running) {
-      fd_set l_set;
+      tv.tv_sec = 5;
+      tv.tv_usec = 0;
 
       FD_ZERO(&l_set);
       FD_SET(m_socket, &l_set);
 
-      select(m_socket + 1, &l_set, nullptr, nullptr, &tv);
+      l_threadInit.lock();
+      int l_clientSocket(-1);
+      struct sockaddr_in l_clientAddress;
+      bzero(&l_clientAddress, sizeof(l_clientAddress));
+      int l_clientLength = sizeof(l_clientAddress);
+      l_threadInit.unlock();
+
+      select(FD_SETSIZE, &l_set, nullptr, nullptr, &tv);
 
       if (FD_ISSET(m_socket, &l_set) and m_running) {
-        std::thread l_thread([&] {
-          struct sockaddr_in l_clientAddress;
-          bzero(&l_clientAddress, sizeof(l_clientAddress));
-          std::string l_request;
-          int l_clientLength = sizeof(l_clientAddress);
-          l_request.resize(4096);
 
-          int l_accepted = accept(m_socket,
-                                  (struct sockaddr *) &l_clientAddress,
-                                  (socklen_t *) &l_clientLength);
+        l_threadInit.lock();
+        l_clientSocket = accept(m_socket, (struct sockaddr *) &l_clientAddress, (socklen_t *) &l_clientLength);
 
-          char * l_clientIP = inet_ntoa(l_clientAddress.sin_addr);
-
-          int32_t l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
-          l_request.resize(l_length);
+        std::thread l_thread([&]()->void {
+          int l_accepted = l_clientSocket;
+          l_threadInit.unlock();
 
           try {
+            std::string l_request;
+            l_request.resize(4096);
+
+            char * l_clientIP = inet_ntoa(l_clientAddress.sin_addr);
+
+            int32_t l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
+            l_request.resize(l_length);
 
             // If we are here, we have a request to handle
             http_request l_headers(l_request);
@@ -316,13 +325,15 @@ void web::run()
 
             syslog(LOG_NOTICE, "Replying to %s [ %s ]",
                    l_clientIP, l_responseHeaders.code_to_string().c_str());
+
+            close(l_accepted);
+
           }
           catch(std::exception const & e)
           {
             std::cerr << " --- Exception caught: " << e.what() << std::endl;
+            if (l_accepted) close(l_accepted);
           }
-
-          close(l_accepted);
         });
 
         // Fork it in background
