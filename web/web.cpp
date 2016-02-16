@@ -234,6 +234,7 @@ void web::run()
 
         l_threadInit.lock();
         l_clientSocket = accept(m_socket, (struct sockaddr *) &l_clientAddress, (socklen_t *) &l_clientLength);
+        char * l_clientIP = inet_ntoa(l_clientAddress.sin_addr);
 
         std::thread l_thread([&]()->void {
           int l_accepted = l_clientSocket;
@@ -243,7 +244,6 @@ void web::run()
             std::string l_request;
             l_request.resize(4096);
 
-            char * l_clientIP = inet_ntoa(l_clientAddress.sin_addr);
 
             int32_t l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
             l_request.resize(l_length);
