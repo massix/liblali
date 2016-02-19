@@ -241,12 +241,17 @@ void web::run()
           l_threadInit.unlock();
 
           try {
+            uint32_t l_bufferSize(4096 * 100); // 400k
             std::string l_request;
-            l_request.resize(4096);
+            char buffer[l_bufferSize];
+            bzero(buffer, l_bufferSize);
+            ssize_t l_length(0);
 
-
-            int32_t l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
-            l_request.resize(l_length);
+            while ((l_length = ::recv(l_accepted, buffer, l_bufferSize, 0))) {
+              l_request += std::string(buffer, l_length);
+              if (l_length < l_bufferSize) break;
+              bzero(buffer, l_bufferSize);
+            }
 
             // If we are here, we have a request to handle
             http_request l_headers(l_request);
@@ -262,7 +267,7 @@ void web::run()
 
               l_request.resize(atoi(l_headers["Content-Length"].c_str()));
               l_length = recv(l_accepted, (void *) l_request.data(), l_request.size(), 0);
-              syslog(LOG_DEBUG, "Length of body: %d", l_length);
+              syslog(LOG_DEBUG, "Length of body: %ld", l_length);
 
               if (l_length != -1) {
                 syslog(LOG_DEBUG, "Received body: %s", l_request.c_str());
