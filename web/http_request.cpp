@@ -238,6 +238,9 @@ std::string http_request::code_to_string() const
   case kNotFound:
     l_ret += "404 Not Found";
     break;
+  case kPermanentRedirect:
+    l_ret += "301 Moved Permanently";
+    break;
   }
 
   return l_ret;
