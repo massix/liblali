@@ -73,7 +73,8 @@ namespace todo
     enum response_code_t {
       kOkay = 200,
       kPermanentRedirect = 301,
-      kNotFound = 404
+      kNotFound = 404,
+      kTeaPot = 418
     };
 
   public:

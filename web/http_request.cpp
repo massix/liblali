@@ -241,6 +241,9 @@ std::string http_request::code_to_string() const
   case kPermanentRedirect:
     l_ret += "301 Moved Permanently";
     break;
+  case kTeaPot:
+    l_ret += "418 I'm a teapot";
+    break;
   }
 
   return l_ret;
