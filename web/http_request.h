@@ -67,7 +67,8 @@ namespace todo
 
     enum request_type_t {
       kGet  = 0,
-      kPost = 1
+      kPost = 1,
+      kHead = 2
     };
 
     enum response_code_t {

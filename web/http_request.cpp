@@ -132,6 +132,10 @@ http_request::http_request(std::string const & p_request) : m_valid(false)
   {
     m_request = kPost;
   }
+  else if (l_method == "HEAD")
+  {
+    m_request = kHead;
+  }
 
   // We can deduce the URL will be within the two fixed parts
   if (m_valid)

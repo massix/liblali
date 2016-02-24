@@ -321,7 +321,10 @@ void web::run()
             l_responseHeaders["Content-Length"] = std::to_string(l_html_response.size());
 
             std::string l_response = l_responseHeaders.to_string();
-            l_response += l_html_response;
+
+            // Send the full response only if the client didn't ask for the HEAD only.
+            if (l_headers.m_request != http_request::kHead)
+              l_response += l_html_response;
 
             l_length = send(l_accepted,
                             l_response.c_str(),
